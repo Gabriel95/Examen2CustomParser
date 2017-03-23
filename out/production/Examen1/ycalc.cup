@@ -1,0 +1,72 @@
+import tree.expression.*;
+import tree.statement.*;
+import java.util.*;
+parser code {:
+    
+    public void report_error(String message, Object info) {
+   
+        StringBuilder m = new StringBuilder("Error");
+   
+        if (info instanceof java_cup.runtime.Symbol) {
+            java_cup.runtime.Symbol s = ((java_cup.runtime.Symbol) info);
+   
+            if (s.left >= 0) {                
+                m.append(" in line "+(s.left+1));   
+                if (s.right >= 0)                    
+                    m.append(", column "+(s.right+1));
+            }
+        }
+   
+        m.append(" : "+message);
+   
+        System.err.println(m);
+    }
+   
+    public void report_fatal_error(String message, Object info) {
+        report_error(message, info);
+        System.exit(1);
+    }
+
+
+    public HashMap<String,Integer> vars = new HashMap<String,Integer>();
+:};   
+
+terminal String ID;
+terminal Integer NUM;
+terminal  EQUAL, GOTO, COLON, IF, READ, PRINT, PLUS, MINUS, MUL, DIV, EQ, NEQ, GT, LT, GE, LE;
+non terminal NumberNode const;
+non terminal IdNode var, label;
+non terminal StatementNode statement;
+non terminal List<StatementNode> statementList;
+non terminal ExpressionNode expr, varConst, boolExpr;
+
+statementList ::= statement:s statementList:sL {: sL.add(0,s); RESULT = sL; :}
+                  | {:List<StatementNode> nodeList = new ArrayList<StatementNode>(); RESULT = nodeList; :};
+
+statement ::=  var : v EQUAL expr:e {: RESULT = new AssignNode(e,v); :}
+             | GOTO label:l {: RESULT = new GoToLabel(l); :}
+             | label:l COLON {: RESULT = new LabelNode(l); :}
+             | IF boolExpr:b GOTO label:l {: RESULT = new IfNode(b,l); :}
+             | READ var:v {: RESULT = new ScanNode(v); :}
+             | PRINT var:v {: RESULT = new PrintNode(v); :};
+
+expr ::=    varConst:vC {: RESULT = vC; :}
+          | varConst:vC1 PLUS varConst:vC2 {: RESULT = new SumNode(vC2,vC1); :}
+          | varConst:vC1 MINUS varConst:vC2 {: RESULT = new SubNode(vC2,vC1); :}
+          | varConst:vC1 MUL varConst:vC2 {: RESULT = new MultNode(vC2,vC1); :}
+          | varConst:vC1 DIV varConst:vC2 {: RESULT = new DivNode(vC2,vC1); :};
+
+boolExpr ::=  varConst:l EQ varConst:r {: RESULT = new EqualsNode(r,l); :}
+            | varConst:l NEQ varConst:r {: RESULT = new NotEqualsNode(r,l); :}
+            | varConst:l GT varConst:r {: RESULT = new GreaterThanNode(r,l); :}
+            | varConst:l LT varConst:r {: RESULT = new LessThanNode(r,l); :}
+            | varConst:l GE varConst:r {: RESULT = new GreaterOrEqualsThanNode(r,l); :}
+            | varConst:l LE varConst:r {: RESULT = new LessOrEqualsThanNode(r,l); :};
+
+varConst ::= var : v {: RESULT = v; :}| const : c {: RESULT = c; :};
+
+var ::= ID:id {: RESULT = new IdNode(id); :};
+
+label ::= ID:id {: RESULT = new IdNode(id); :};
+
+const ::= NUM : n {: RESULT = new NumberNode(n); :};
